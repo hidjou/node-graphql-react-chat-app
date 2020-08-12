@@ -5,6 +5,7 @@
   "main": "server.js",
   "dependencies": {
     "apollo-server": "^2.16.1",
+    "bcryptjs": "^2.4.3",
     "graphql": "^15.3.0",
     "mysql2": "^2.1.0",
     "sequelize": "^6.3.4"
