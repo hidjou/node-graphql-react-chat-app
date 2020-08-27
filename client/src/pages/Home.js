@@ -1,7 +1,7 @@
-import React, { Fragment } from 'react'
-import { Row, Col, Button } from 'react-bootstrap'
+import React, { useEffect, useState, Fragment } from 'react'
+import { Row, Col, Button, Image } from 'react-bootstrap'
 import { Link } from 'react-router-dom'
-import { gql, useQuery } from '@apollo/client'
+import { gql, useQuery, useLazyQuery } from '@apollo/client'
 
 import { useAuthDispatch } from '../context/auth'
 
@@ -9,7 +9,26 @@ const GET_USERS = gql`
   query getUsers {
     getUsers {
       username
-      email
+      createdAt
+      imageUrl
+      latestMessage {
+        uuid
+        from
+        to
+        content
+        createdAt
+      }
+    }
+  }
+`
+
+const GET_MESSAGES = gql`
+  query getMessages($from: String!) {
+    getMessages(from: $from) {
+      uuid
+      from
+      to
+      content
       createdAt
     }
   }
@@ -17,6 +36,7 @@ const GET_USERS = gql`
 
 export default function Home({ history }) {
   const dispatch = useAuthDispatch()
+  const [selectedUser, setSelectedUser] = useState(null)
 
   const logout = () => {
     dispatch({ type: 'LOGOUT' })
@@ -25,13 +45,18 @@ export default function Home({ history }) {
 
   const { loading, data, error } = useQuery(GET_USERS)
 
-  if (error) {
-    console.log(error)
-  }
+  const [
+    getMessages,
+    { loading: messagesLoading, data: messagesData },
+  ] = useLazyQuery(GET_MESSAGES)
 
-  if (data) {
-    console.log(data)
-  }
+  useEffect(() => {
+    if (selectedUser) {
+      getMessages({ variables: { from: selectedUser } })
+    }
+  }, [selectedUser])
+
+  if (messagesData) console.log(messagesData.getMessages)
 
   let usersMarkup
   if (!data || loading) {
@@ -40,8 +65,25 @@ export default function Home({ history }) {
     usersMarkup = <p>No users have joined yet</p>
   } else if (data.getUsers.length > 0) {
     usersMarkup = data.getUsers.map((user) => (
-      <div key={user.username}>
-        <p>{user.username}</p>
+      <div
+        className="d-flex p-3"
+        key={user.username}
+        onClick={() => setSelectedUser(user.username)}
+      >
+        <Image
+          src={user.imageUrl}
+          roundedCircle
+          className="mr-2"
+          style={{ width: 50, height: 50, objectFit: 'cover' }}
+        />
+        <div>
+          <p className="text-success">{user.username}</p>
+          <p className="font-weight-light">
+            {user.latestMessage
+              ? user.latestMessage.content
+              : 'You are now connected!'}
+          </p>
+        </div>
       </div>
     ))
   }
@@ -59,9 +101,17 @@ export default function Home({ history }) {
         </Button>
       </Row>
       <Row className="bg-white">
-        <Col xs={4}>{usersMarkup}</Col>
+        <Col xs={4} className="p-0 bg-secondary">
+          {usersMarkup}
+        </Col>
         <Col xs={8}>
-          <p>Messages</p>
+          {messagesData && messagesData.getMessages.length > 0 ? (
+            messagesData.getMessages.map((message) => (
+              <p key={message.uuid}>{message.content}</p>
+            ))
+          ) : (
+            <p>Messages</p>
+          )}
         </Col>
       </Row>
     </Fragment>
